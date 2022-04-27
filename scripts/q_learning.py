@@ -3,9 +3,17 @@
 import rospy
 import numpy as np
 import os
+#added this
+from q_learning_project.msg import QLearningReward
+from q_learning_project.msg import QMatrix
+from q_learning_project.msg import QMatrixRow
+from q_learning_project.msg import RobotMoveObjectToTag
 
 # Path of directory on where this file is located
 path_prefix = os.path.dirname(__file__) + "/action_states/"
+
+
+
 
 class QLearning(object):
     def __init__(self):
@@ -43,10 +51,42 @@ class QLearning(object):
         # Note: that not all states are possible to get to.
         self.states = np.loadtxt(path_prefix + "states.txt")
         self.states = list(map(lambda x: list(map(lambda y: int(y), x)), self.states))
-
+        print("see states", self.states)
+    
+    def get_reward(self, data):
+        #callback function?
+        #get what the reward was and based off this we update the Q MATRIX
+        self.actions = data
+    
     def save_q_matrix(self):
         # TODO: You'll want to save your q_matrix to a file once it is done to
         # avoid retraining
+        
+        # subscribe to the rewards
+        rospy.Subscriber(self.actions, QLearningReward, self.get_reward)
+
+        #pusblish to the robot action (not sure about the first one if we have to define)
+        self.robot_action_pub = rospy.Publisher("/action_states/", RobotMoveObjectToTag, queue_size=10 )
+        
+        #publish to the q matrix
+        self.q_matrix_pub = rospy.Publisher("q_matrix", RobotMoveObjectToTag, queue_size=10 )
+        
+        #writing some stuff because idk how to create a matrix lmao 
+        starter_matrix = np.array[]
+        for x in range 64:
+            columns= []
+            for y in range 9:
+                 columns.append[]
+            starter_matrix.append(columns)
+
+        
+        #subscribe to the reward and publish to the action
+        #update the q matrix based of the algorithm where Q(st)
+
+
+
+        #the q matrix updates the q values which are dependnet on the reward.
+        
         return
 
 if __name__ == "__main__":
