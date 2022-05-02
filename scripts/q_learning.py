@@ -73,6 +73,7 @@ class QLearning(object):
         self.states = np.loadtxt(path_prefix + "states.txt")
         self.states = list(map(lambda x: list(map(lambda y: int(y), x)), self.states))
         self.q_matrix = self.init_matrix()
+        self.curr_state = 0
         self.num_constant = 0
         self.past_matrix = self.q_matrix
         self.first_action()
@@ -105,52 +106,32 @@ class QLearning(object):
                 
         print("reward!")
         print(data.reward)
-        self.reward = data.reward
+        reward = data.reward
+        self.q_matrix_alg()
+        return 
+    
+    def iterate(self):
         #implement Q ALGORITHM 
         t = 0
         matrix = self.q_matrix 
-
+       
         num_constant = 0 #the number of times the matrix has been exactly the same
         past_matrix = np.full((64,9),-1)
-        while self.num_constant < 5:
-            self.q_matrix_alg(self.past_matrix)
-            if len(possible_actions) > 0:
-                rand_act = choice(possible_actions) #randomly choose one of possible actions
-                #print(rand_act)
-                #publish rand action
-                self.publish_action(rand_act)
-        self.save_q_matrix()
-        return 
-    
-    def q_matrix_alg(self, reward):
-        gamma = 0.5
-        alpha = 1
-        trajectory = True
-        #set initial state to origin
-        curr_state = 0
-        matrix = self.q_matrix
-        #determine what next state is and update q_matrix
-
-        while trajectory:            
-            #choose a random action
-            possible_actions = self.choose_action(matrix[curr_state])
-                
-                if reward != 0:
-                    print("not zero!!!")
-                #determine what 
-                next_state = 0
-                while (self.action_matrix[curr_state][next_state] != rand_act) and (next_state < 64):
-                    next_state += 1
-                
-                print("updating row: " +str(curr_state) + " col: " + str(rand_act))
-                matrix[curr_state][rand_act] = matrix[curr_state][rand_act] + alpha * (reward + gamma * max(matrix[next_state]) - matrix[curr_state][rand_act])
-                #when alpha = 1
-                #matrix[curr_state][rand_act] = reward + gamma * max(matrix[next_state])
-                print("new value: " + matrix[curr_state][rand_act])  
-                t += 1
-                    
-                #print(matrix)
-                curr_state = next_state
+        while self.num_constant < 5:                
+            trajectory = True
+            #set initial state to origin
+            curr_state = 0
+            matrix = self.q_matrix
+            #determine what next state is and update q_matrix
+            while trajectory:            
+                #choose a random action
+                rand_act = self.choose_action(matrix[curr_state])      
+                if rand_act != -1:
+                    #print(rand_act)
+                    #publish rand action
+                    self.publish_action(rand_act)
+                    while not True:
+                        rospy.sleep(1)
             else:
                 
                 if matrix.all() == past_matrix.all(): #compare current matrix to prior matrix
@@ -161,6 +142,30 @@ class QLearning(object):
                     self.past_matrix = matrix
                 trajectory = False
                 print("end of trajectory")
+        self.save_q_matrix()
+
+
+    def q_matrix_alg(self, reward, rand_act):
+            alpha = 1
+            gamma = 0.8
+            curr_state = self.curr_state
+            matrix = self.q_matrix
+            if reward != 0:
+                    print("not zero!!!")
+            #determine what 
+            next_state = 0
+            while (self.action_matrix[curr_state][next_state] != rand_act) and (next_state < 64):
+                    next_state += 1
+                
+            print("updating row: " +str(curr_state) + " col: " + str(rand_act))
+            matrix[curr_state][rand_act] = matrix[curr_state][rand_act] + alpha * (reward + gamma * max(matrix[next_state]) - matrix[curr_state][rand_act])
+            #when alpha = 1
+            #matrix[curr_state][rand_act] = reward + gamma * max(matrix[next_state])
+            print("new value: " + matrix[curr_state][rand_act])  
+                    
+            #print(matrix)
+            self.curr_state = next_state
+            self.matrix_update = True
 
         
 
@@ -170,11 +175,15 @@ class QLearning(object):
     def choose_action(self,all_actions):
         #all actions (possible or not) from current state
         possible_actions = []
+        rand_act = -1
         print(all_actions)
         for i in range(len(all_actions)):
             if all_actions[i] != -1: #check if any of the 9 actions is possible (not -1)
                 possible_actions.append(i) # if possible add to array
-        return possible_actions
+        if len(possible_actions) > 0:
+            rand_act = choice(possible_actions) #randomly choose one of possible actions
+               
+        return rand_act
             
 
     def init_matrix(self):
