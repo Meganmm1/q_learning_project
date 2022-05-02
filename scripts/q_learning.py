@@ -5,6 +5,7 @@ import numpy as np
 import os
 from random import choice
 import time
+import csv
 
 #added this
 
@@ -94,7 +95,6 @@ class QLearning(object):
         rows = 64
         cols = 9
         starter_matrix = np.full((rows,cols),-1)
-        
         #print(starter_matrix)
 
         #if an action is valid for that state change to 0
@@ -114,16 +114,15 @@ class QLearning(object):
         # TODO: You'll want to save your q_matrix to a file once it is done to
         # avoid retraining
 
-        r = rospy.Rate(1)
 
         #implement Q ALGORITHM 
         t = 0
         matrix = self.init_matrix()
-        gamma = 0.9
+        gamma = 0.5
         alpha = 1
-        num_constant = 0
+        num_constant = 0 #the number of times the matrix has been exactly the same
         past_matrix = np.full((64,9),-1)
-        while num_constant < 150:
+        while num_constant < 5: #keep repeating until matrix has been constant 10 times
             trajectory = True
             #set initial state to origin
             curr_state = 0
@@ -131,8 +130,8 @@ class QLearning(object):
                 #choose a random action
                 all_actions = matrix[curr_state] #all actions (possible or not) from current state
                 possible_actions = []
-
-                for i in range(9):
+                print(all_actions)
+                for i in range(len(all_actions)):
                     if all_actions[i] != -1: #check if any of the 9 actions is possible (not -1)
                         possible_actions.append(i) # if possible add to array
                 
@@ -155,21 +154,24 @@ class QLearning(object):
                     if reward != 0:
                         print("not zero!!!")
                     next_state = 0
-                    while self.action_matrix[curr_state][next_state] != rand_act and next_state < 64:
+                    while (self.action_matrix[curr_state][next_state] != rand_act) and (next_state < 64):
                         next_state += 1
                     
-                    #matrix[curr_state][rand_act] = matrix[curr_state][rand_act] + 
-                    #                   alpha * (reward + gamma * max(matrix[next_state] - matrix[curr_state])
+                    matrix[curr_state][rand_act] = matrix[curr_state][rand_act] + alpha * (reward + gamma * max(matrix[next_state]) - matrix[curr_state][rand_act])
                     #when alpha = 1
-                    matrix[curr_state][rand_act] = reward + gamma * max(matrix[next_state])
+                    #matrix[curr_state][rand_act] = reward + gamma * max(matrix[next_state])
+                    
                     t += 1
                     
                     #print(matrix)
                     curr_state = next_state
                 else:
-                    if matrix.all() == past_matrix.all():
+                    if matrix.all() == past_matrix.all(): #compare current matrix to prior matrix
                         num_constant += 1
-                    past_matrix = matrix
+                        print(matrix)
+                    else:
+                        num_constant = 0
+                        past_matrix = matrix
                     trajectory = False
                     print("end of trajectory")
 
@@ -179,7 +181,9 @@ class QLearning(object):
         #update the q matrix based of the algorithm where Q(st)
 
         print(matrix)
-
+        with open("q_matrix.csv","w+") as my_csv:
+            csvWriter = csv.writer(my_csv,delimiter=',')
+            csvWriter.writerows(matrix)
         #the q matrix updates the q values which are dependnet on the reward.
         print(num_constant)
         return
