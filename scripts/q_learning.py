@@ -73,8 +73,10 @@ class QLearning(object):
         self.states = np.loadtxt(path_prefix + "states.txt")
         self.states = list(map(lambda x: list(map(lambda y: int(y), x)), self.states))
         self.q_matrix = self.init_matrix()
-        self.first_action()
         self.num_constant = 0
+        self.past_matrix = self.q_matrix
+        self.first_action()
+        
        
        # print("see states", self.states)
             
@@ -82,13 +84,15 @@ class QLearning(object):
     def first_action(self):
         matrix = self.q_matrix
         self.publish_action(0)
+        self.publish_action(4)
+        self.publish_action(8)
         time.sleep(1)
         
 
     def publish_action(self,num_act):
         robot_act = (self.actions[num_act]) #get corresponding action
         #print(robot_act)
-                    
+        time.sleep(1)            
         print("about to publish")
         self.robot_action_pub.publish(RobotMoveObjectToTag
             (robot_object = robot_act['object'],tag_id = robot_act['tag']))
@@ -109,7 +113,12 @@ class QLearning(object):
         num_constant = 0 #the number of times the matrix has been exactly the same
         past_matrix = np.full((64,9),-1)
         while self.num_constant < 5:
-            self.q_matrix_alg(self)
+            self.q_matrix_alg(self.past_matrix)
+            if len(possible_actions) > 0:
+                rand_act = choice(possible_actions) #randomly choose one of possible actions
+                #print(rand_act)
+                #publish rand action
+                self.publish_action(rand_act)
         self.save_q_matrix()
         return 
     
@@ -120,17 +129,12 @@ class QLearning(object):
         #set initial state to origin
         curr_state = 0
         matrix = self.q_matrix
+        #determine what next state is and update q_matrix
 
         while trajectory:            
             #choose a random action
             possible_actions = self.choose_action(matrix[curr_state])
                 
-            if len(possible_actions) > 0:
-                rand_act = choice(possible_actions) #randomly choose one of possible actions
-                #print(rand_act)
-                #publish rand action
-                self.publish_action(rand_act)
-
                 if reward != 0:
                     print("not zero!!!")
                 #determine what 
@@ -154,7 +158,7 @@ class QLearning(object):
                     print(matrix)
                 else:
                     num_constant = 0
-                    past_matrix = matrix
+                    self.past_matrix = matrix
                 trajectory = False
                 print("end of trajectory")
 
