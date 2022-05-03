@@ -73,7 +73,7 @@ class QLearning(object):
         self.states = list(map(lambda x: list(map(lambda y: int(y), x)), self.states))
         self.reward_updated = False
         self.q_matrix = self.init_matrix()
-        self.iterate()
+        self.update_q_matrix()
         self.save_q_matrix()
        # print("see states", self.states)
             
@@ -141,7 +141,7 @@ class QLearning(object):
             rand_act = choice(possible_actions) #randomly choose one of possible actions
         return rand_act
 
-    def iterate(self):
+    def update_q_matrix(self):
         #implement Q ALGORITHM 
         matrix = self.q_matrix
         gamma = 0.9
