@@ -6,7 +6,6 @@ import os
 from random import choice
 import time
 import csv
-
 #added this
 
 from q_learning_project.msg import QLearningReward
@@ -26,7 +25,6 @@ class QLearning(object):
         rospy.init_node("q_learning")
 
         self.reward = 0
-        self.received = False
         # subscribe to the rewards
         rospy.Subscriber("/q_learning/reward", QLearningReward, self.get_reward)
 
@@ -60,6 +58,7 @@ class QLearning(object):
             lambda x: {"object": colors[int(x[0])], "tag": int(x[1])},
             self.actions
         ))
+    
         print(self.actions)
 
 
@@ -72,127 +71,34 @@ class QLearning(object):
         # Note: that not all states are possible to get to.
         self.states = np.loadtxt(path_prefix + "states.txt")
         self.states = list(map(lambda x: list(map(lambda y: int(y), x)), self.states))
+        self.reward_updated = False
         self.q_matrix = self.init_matrix()
-        self.curr_state = 0
-        self.num_constant = 0
-        self.past_matrix = self.q_matrix
-        self.first_action()
-        
-       
+        self.iterate()
+        self.save_q_matrix()
        # print("see states", self.states)
             
         
-    def first_action(self):
-        matrix = self.q_matrix
-        self.publish_action(0)
-        self.publish_action(4)
-        self.publish_action(8)
-        time.sleep(1)
         
-
-    def publish_action(self,num_act):
-        robot_act = (self.actions[num_act]) #get corresponding action
-        #print(robot_act)
-        time.sleep(1)            
-        print("about to publish")
-        self.robot_action_pub.publish(RobotMoveObjectToTag
-            (robot_object = robot_act['object'],tag_id = robot_act['tag']))
-        print("published")
-
+    
     def get_reward(self, data):
         #callback function?
         #get what the reward was and based off this we update the Q MATRIX
         #self.actions = data
-                
+         
         print("reward!")
         print(data.reward)
-        reward = data.reward
-        self.q_matrix_alg()
+        self.reward_updated = True
+        self.reward = data.reward
         return 
     
-    def iterate(self):
-        #implement Q ALGORITHM 
-        t = 0
-        matrix = self.q_matrix 
-       
-        num_constant = 0 #the number of times the matrix has been exactly the same
-        past_matrix = np.full((64,9),-1)
-        while self.num_constant < 5:                
-            trajectory = True
-            #set initial state to origin
-            curr_state = 0
-            matrix = self.q_matrix
-            #determine what next state is and update q_matrix
-            while trajectory:            
-                #choose a random action
-                rand_act = self.choose_action(matrix[curr_state])      
-                if rand_act != -1:
-                    #print(rand_act)
-                    #publish rand action
-                    self.publish_action(rand_act)
-                    while not True:
-                        rospy.sleep(1)
-            else:
-                
-                if matrix.all() == past_matrix.all(): #compare current matrix to prior matrix
-                    num_constant += 1
-                    print(matrix)
-                else:
-                    num_constant = 0
-                    self.past_matrix = matrix
-                trajectory = False
-                print("end of trajectory")
-        self.save_q_matrix()
-
-
-    def q_matrix_alg(self, reward, rand_act):
-            alpha = 1
-            gamma = 0.8
-            curr_state = self.curr_state
-            matrix = self.q_matrix
-            if reward != 0:
-                    print("not zero!!!")
-            #determine what 
-            next_state = 0
-            while (self.action_matrix[curr_state][next_state] != rand_act) and (next_state < 64):
-                    next_state += 1
-                
-            print("updating row: " +str(curr_state) + " col: " + str(rand_act))
-            matrix[curr_state][rand_act] = matrix[curr_state][rand_act] + alpha * (reward + gamma * max(matrix[next_state]) - matrix[curr_state][rand_act])
-            #when alpha = 1
-            #matrix[curr_state][rand_act] = reward + gamma * max(matrix[next_state])
-            print("new value: " + matrix[curr_state][rand_act])  
-                    
-            #print(matrix)
-            self.curr_state = next_state
-            self.matrix_update = True
-
-        
-
-        #subscribe to the reward and publish to the action
-        #update the q matrix based of the algorithm where Q(st)
-
-    def choose_action(self,all_actions):
-        #all actions (possible or not) from current state
-        possible_actions = []
-        rand_act = -1
-        print(all_actions)
-        for i in range(len(all_actions)):
-            if all_actions[i] != -1: #check if any of the 9 actions is possible (not -1)
-                possible_actions.append(i) # if possible add to array
-        if len(possible_actions) > 0:
-            rand_act = choice(possible_actions) #randomly choose one of possible actions
-               
-        return rand_act
-            
-
     def init_matrix(self):
         #initializes q-matrix with 0's or -1 if action is invalid
-        print("initializing")
+
         #makes a matrix of 64 rows and 9 colums filled with -1
         rows = 64
         cols = 9
         starter_matrix = np.full((rows,cols),-1)
+        
         #print(starter_matrix)
 
         #if an action is valid for that state change to 0
@@ -207,21 +113,107 @@ class QLearning(object):
         print(starter_matrix)
         return(starter_matrix)
 
+    def first_action(self):
+        self.publish_action(0)
+        self.publish_action(4)
+        self.publish_action(8)
+        
+
+    def publish_action(self,num_act):
+        robot_act = (self.actions[num_act]) #get corresponding action
+        #print(robot_act)
+        time.sleep(1)            
+        print("about to publish")
+        self.robot_action_pub.publish(RobotMoveObjectToTag
+            (robot_object = robot_act['object'],tag_id = robot_act['tag']))
+        print("published")
+
+    def choose_action(self, curr_state):
+        #choose a random action
+        matrix = self.q_matrix
+        rand_act = -1
+        all_actions = matrix[curr_state] #all actions (possible or not) from current state
+        possible_actions = []
+        for i in range(9):
+            if all_actions[i] != -1: #check if any of the 9 actions is possible (not -1)
+                possible_actions.append(i) # if possible add to array
+        if len(possible_actions) > 0:
+            rand_act = choice(possible_actions) #randomly choose one of possible actions
+        return rand_act
+
+    def iterate(self):
+        #implement Q ALGORITHM 
+        matrix = self.q_matrix
+        gamma = 0.9
+        alpha = 1
+        num_constant = 0 #num of times matrix has not changed
+        past_matrix = np.full((64,9),-1)
+        self.first_action()
+        while num_constant < 150: #continue looping until matrix has not changed for set num of trajectories
+            trajectory = True
+            #set initial state to origin
+            curr_state = 0
+            while trajectory:            
+                rand_act = self.choose_action(curr_state)
+                if rand_act != -1:
+                    #print(rand_act)
+                    #publish rand action
+                    self.publish_action(rand_act)
+                    time.sleep(1)
+                    while not self.reward_updated:
+                        var = 3
+                        print("waiting")
+                    #get reward??
+                    #reward = QLearningReward()
+                    reward = self.reward #just arbitrarily set it as 10 for now
+                    #how do you get next state based on action?
+                    if reward != 0:
+                        print("not zero!!!")
+                    next_state = 0
+                    while self.action_matrix[curr_state][next_state] != rand_act and next_state < 64:
+                        next_state += 1
+                    print("next state" +str(next_state))
+                    
+                    old_q = matrix[curr_state][rand_act]
+                    matrix[curr_state][rand_act] = old_q + alpha * (reward + gamma * max(matrix[next_state]) - old_q)
+                    #when alpha = 1
+                    #matrix[curr_state][rand_act] = reward + gamma * max(matrix[next_state])
+                    
+                    print("updating row: " +str(curr_state) + " col: " + str(rand_act))
+                    print("new value: " + str(matrix[curr_state][rand_act]))
+                    if matrix[curr_state][rand_act]:
+                        print(matrix)
+                    self.q_matrix = matrix
+                    #print(matrix)
+                    curr_state = next_state
+                else:
+                    if matrix.all() == past_matrix.all():
+                        num_constant += 1
+                        print(num_constant)
+                    past_matrix = matrix
+                    trajectory = False
+                    print("end of trajectory")
+        self.q_matrix = matrix
 
     def save_q_matrix(self):
         # TODO: You'll want to save your q_matrix to a file once it is done to
         # avoid retraining
 
-        print("saving")
+
+
+        
+
+        #subscribe to the reward and publish to the action
+        #update the q matrix based of the algorithm where Q(st)
+
         matrix = self.q_matrix
+        print("saving")
         with open("q_matrix.csv","w+") as my_csv:
             csvWriter = csv.writer(my_csv,delimiter=',')
             csvWriter.writerows(matrix)
         #the q matrix updates the q values which are dependnet on the reward.
-        
         return
 
 if __name__ == "__main__":
     node = QLearning()
-    
-    rospy.spin()
+    node.save_q_matrix
