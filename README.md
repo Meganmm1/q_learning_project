@@ -2,23 +2,23 @@
 
 ## Emilia Lim and Megan Morales
 
-#Writeup
-##Goal
+# Writeup
+## Goal
 - The goal of this project is to be able to correctly implement a Q-learning algorithm to get our robot to determine the best path to place three different objects into set locations. Another goal of this project is to get oriented with coding the robot's arm so that it can use the Q-learning alogrithm to place said objects. 
 
-##High-level Description
+## High-level Description
 - In order to determine which colored object goes into which tag we first initalized a 64 by 9 matrix that represented the possible states and actions that the robot could take. We randomly generated different actions where based off of these actions we subscribed to the possible rewards that can be recieved. Using the Q learning algorithm we updated our initalized matrix so that eventually the actions that contain the greatest reward values will be represented in the matrix and accurately represent the path that the robot should take. 
-##Q-learning algorithm Description
+## Q-learning algorithm Description
 
-###Selecting and executing actions for the robot (or phantom robot) to take
+### Selecting and executing actions for the robot (or phantom robot) to take
 - We select and determine which action the robot should take in the choose_action function. 
 - First we determine which action is possible based on the state that the robot is currently in. In order to select which action for the robot to take we used the function random.choice to randomly select an action for the robot to take. We used the publish_action function to publish the action into the robot's action function. Once we published this action we subscribed to the QLearningReward topic to determine the reward the robot would recieve upon moving from its current state to the next. This is repeated for multiple iterations up until the matrix converges. 
 
-###Updating the Q-matrix
+### Updating the Q-matrix
 - We update the Q matrix in the update_q_matrix function. 
 - After we select and execute the possible action for the robot to take we use the reward we found to update the matrix. If the reward is non-zero then we update the Q-matrix with a value using the Q-learning algorithm. If the reward is zero we still update the matrix with the zero value. Eventually, the matrix will converge to represent the Q values of the robots actions where the highest Q value represent the path that the robot should take to get the highest reward. 
 
-###Determining when to stop iterating through the Q-learning algorithm
+### Determining when to stop iterating through the Q-learning algorithm
 - We determine when to stop iterating through the Q-learning algorithm in the update_q_matrix function. 
 - In order to determine this value we ran our code, which updated and printed our a matrix after each update, several times. We found that the value we set (150) was sufficient to update all the states that would lead to possible rewards and eventually allow our matrix to converge.
 
