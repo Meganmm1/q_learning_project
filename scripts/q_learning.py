@@ -75,6 +75,7 @@ class QLearning(object):
         self.q_matrix = self.init_matrix()
         self.update_q_matrix()
         self.save_q_matrix()
+        self.choose_path()
        # print("see states", self.states)
             
         
@@ -144,7 +145,7 @@ class QLearning(object):
     def update_q_matrix(self):
         #implement Q ALGORITHM 
         matrix = self.q_matrix
-        gamma = 0.9
+        gamma = 0.8
         alpha = 1
         num_constant = 0 #num of times matrix has not changed
         past_matrix = np.full((64,9),-1)
@@ -199,10 +200,6 @@ class QLearning(object):
         # TODO: You'll want to save your q_matrix to a file once it is done to
         # avoid retraining
 
-
-
-        
-
         #subscribe to the reward and publish to the action
         #update the q matrix based of the algorithm where Q(st)
 
@@ -213,6 +210,9 @@ class QLearning(object):
             csvWriter.writerows(matrix)
         #the q matrix updates the q values which are dependnet on the reward.
         return
+
+
+
 
 if __name__ == "__main__":
     node = QLearning()
