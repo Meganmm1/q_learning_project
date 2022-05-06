@@ -75,6 +75,29 @@ class Action(object):
             mask0 = cv2.inRange(hsv, lower_pink, upper_pink)             
             mask1 = cv2.inRange(hsv, lower_green, upper_green)
             mask2 = cv2.inRange(hsv, lower_blue, upper_blue)
+            
+            final_mask = cv2.bitwise_or(mask0,mask1,mask2)
+            #set the dimensions of the image
+            h,w,d = image.shape
+
+            # using moments() function, the center of the yellow pixels is determined
+            M = cv2.moments(final_mask)
+            #im pretty sure this find the center of any of the colored pixels based off the mask
+            # if there are any pink,green,blue pixels found
+                if M['m00'] > 0:
+                        # center of the pixels in the image
+                        cx = int(M['m10']/M['m00'])
+                        cy = int(M['m01']/M['m00'])
+
+            #this is if we want the circle to visualize
+            #cv2.circle(image, (cx, cy), 20, (0,0,255), -1) 
+            kp = .1/w
+            
+            for i in range (360):
+            #Will loop through all the angles and store the angle at which 
+            #the closest object to the robot is located
+
+         
 
             #have robot turn towards correct colored object
             #have robot get to proper distance to colored object
