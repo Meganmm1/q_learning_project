@@ -13,8 +13,13 @@ from q_learning_project.msg import QMatrix
 from q_learning_project.msg import QMatrixRow
 from q_learning_project.msg import RobotMoveObjectToTag
 import rospy, cv2, cv_bridge, numpy
+
+from sensor_msgs.msg import LaserScan
 from sensor_msgs.msg import Image
 from geometry_msgs.msg import Twist, Vector3
+
+# Path of directory on where this file is located
+path_prefix = os.path.dirname(__file__) + "/action_states/"
 
 class Action(object):
     
@@ -51,38 +56,54 @@ class Action(object):
 
         # cmd_vel publisher 
         self.pub_twist = rospy.Publisher('/cmd_vel',Twist,queue_size = 10)
-
         self.action = -1
         self.action_complete = False
-        self.image
+        self.matrix = np.loadtxt(open("q_matrix.csv", "rb"), delimiter=",", skiprows=0)
+        print(self.matrix)
+        self.image_process = False
+        
+        if self.image_process == True:
+            print("hi")
+            
 
-
-    def image_callback(self,msg)
+    def image_callback(self,msg):
         # converts the incoming ROS message to OpenCV format and HSV (hue, saturation, value)
+        print("image_recieved")
         self.image = self.bridge.imgmsg_to_cv2(msg,desired_encoding='bgr8')
+        
+        self.image_process = True
+        #self.choose_actions()
+        print(self.image_process)
     
-    def scanner_callback(self,data)
+    def scanner_callback(self,data):
         self.distance_object = data.ranges[0]
 
 
-    def find_color(self)    
-        hsv = cv2.cvtColor(image, cv2.COLOR_BGR2HSV)
+
+    def find_color(self):   
+        image = self.image
+        
         if self.action != -1:
+            hsv = cv2.cvtColor(image, cv2.COLOR_BGR2HSV)
             action = (self.actions[self.action]) #get corresponding action for number
+            print("action",action)
             color = action['object']
+            
             ar_tag = action['tag']
             #i think we would only need one lower and upper bound as we will only be 
             #be looking at one color at a time
             if color == "pink":
                 lower = numpy.array([164, 63, 159])
                 upper = numpy.array([164, 192, 255])
-            elif color == "green"
+            elif color == "green":
                 lower = numpy.array([60, 63, 192])
                 upper = numpy.array([60, 192, 255])
-            else color == "blue"
+            else:
                 lower = numpy.array([90, 63, 255])
                 upper = numpy.array([104, 255, 255])
-
+            
+            print("COLOR " + str(color))
+            print("tar ag" + str(ar_tag))
             # this erases all pixels that aren't pink,green,blue
             mask0 = cv2.inRange(hsv, lower, upper)             
            
@@ -93,30 +114,32 @@ class Action(object):
             M = cv2.moments(final_mask)
             #im pretty sure this find the center of any of the colored pixels based off the mask
             # if there are any pink,green,blue pixels found
-                if M['m00'] > 0:
-                        # center of the pixels in the image
-                        cx = int(M['m10']/M['m00'])
-                        cy = int(M['m01']/M['m00'])
+            if M['m00'] > 0:
+            # center of the pixels in the image
+                cx = int(M['m10']/M['m00'])
+                cy = int(M['m01']/M['m00'])
 
             #this is if we want the circle to visualize
             #cv2.circle(image, (cx, cy), 20, (0,0,255), -1) 
-            while new_ang != 0
+            while new_ang != 0:
                 kp = .1/w
                 new_ang = kp*(w*.5 - cx)
                 move_towards_color= Vector3(0,0,new_ang)
                 self.pub_twist.publish(linear =0, angular = move_towards_color)
+                print("first publishing")
 
             for i in range (360):
             #Will loop through all the angles and store the angle at which 
             #the closest object to the robot is located
-            if data.ranges[i] < shortest_distance and not data.ranges[i]==0:
-                shortest_distance = data.ranges[i]
-                min_i = i
+                if data.ranges[i] < shortest_distance and not data.ranges[i]==0:
+                    shortest_distance = data.ranges[i]
+                    min_i = i
 
             if min_i < 10 or min_i > 350:
                 new_lin = kp * (self.distance_object-.097)
                 move_foward = Vector3(new_lin, 0,0)
                 self.pub_twist.publish(linear = move_foward, angular = 0)
+                print("second publishing")
             
                 
 
@@ -135,11 +158,10 @@ class Action(object):
             #have robot turn towards correct ar tag
             #have robot go towards ar tag
             #have robot place object
-            self.action_complete = True 
+        print("done")
 
     def choose_actions(self):
-        matrix = np.loadtxt(open("q_matrix.csv", "rb"), delimiter=",", skiprows=1)
-        
+        matrix = self.matrix
         curr_state = 0
         for i in range(3):
             action = 0
@@ -149,14 +171,13 @@ class Action(object):
                     action = i
                     max_q = matrix[curr_state][i]
             self.action = action #set action to maximum
-            self.move_to_color()
-            self.action_complete = False
-            while not self.action_complete:  #wait for action to be completed
-                var = 1
+            print("action choosen " + str(action))
+            self.find_color()
             next_state = 0
             while self.action_matrix[curr_state][next_state] != action and next_state < 64:
                 next_state += 1
             curr_state = next_state
+            print("updated state")
         
     def run(self):
         rospy.spin()
