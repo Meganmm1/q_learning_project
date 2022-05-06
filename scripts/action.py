@@ -44,16 +44,28 @@ class Action(object):
         self.image_sub = rospy.Subscriber('camera/rgb/image_raw',
         Image, self.image_callback)
 
+        #declares node as a subscriber to scan topic and makes a callback
+        # function named interpret_scan
+        rospy.Subscriber("/scan", LaserScan, self.scanner_callback)
+
+
         # cmd_vel publisher 
         self.pub_twist = rospy.Publisher('/cmd_vel',Twist,queue_size = 10)
 
         self.action = -1
         self.action_complete = False
+        self.image
 
 
     def image_callback(self,msg)
         # converts the incoming ROS message to OpenCV format and HSV (hue, saturation, value)
-        image = self.bridge.imgmsg_to_cv2(msg,desired_encoding='bgr8')
+        self.image = self.bridge.imgmsg_to_cv2(msg,desired_encoding='bgr8')
+    
+    def scanner_callback(self,data)
+        self.distance_object = data.ranges[0]
+
+
+    def find_color(self)    
         hsv = cv2.cvtColor(image, cv2.COLOR_BGR2HSV)
         if self.action != -1:
             action = (self.actions[self.action]) #get corresponding action for number
@@ -62,21 +74,18 @@ class Action(object):
             #i think we would only need one lower and upper bound as we will only be 
             #be looking at one color at a time
             if color == "pink":
-                lower_pink = numpy.array([164, 63, 159])
-                upper_pink = numpy.array([164, 192, 255])
+                lower = numpy.array([164, 63, 159])
+                upper = numpy.array([164, 192, 255])
             elif color == "green"
-                lower_green = numpy.array([60, 63, 192])
-                upper_green = numpy.array([60, 192, 255])
+                lower = numpy.array([60, 63, 192])
+                upper = numpy.array([60, 192, 255])
             else color == "blue"
-                lower_blue = numpy.array([90, 63, 255])
-                upper_blue = numpy.array([104, 255, 255])
+                lower = numpy.array([90, 63, 255])
+                upper = numpy.array([104, 255, 255])
 
             # this erases all pixels that aren't pink,green,blue
-            mask0 = cv2.inRange(hsv, lower_pink, upper_pink)             
-            mask1 = cv2.inRange(hsv, lower_green, upper_green)
-            mask2 = cv2.inRange(hsv, lower_blue, upper_blue)
-            
-            final_mask = cv2.bitwise_or(mask0,mask1,mask2)
+            mask0 = cv2.inRange(hsv, lower, upper)             
+           
             #set the dimensions of the image
             h,w,d = image.shape
 
@@ -91,9 +100,30 @@ class Action(object):
 
             #this is if we want the circle to visualize
             #cv2.circle(image, (cx, cy), 20, (0,0,255), -1) 
-            kp = .1/w
-            
+            while new_ang != 0
+                kp = .1/w
+                new_ang = kp*(w*.5 - cx)
+                move_towards_color= Vector3(0,0,new_ang)
+                self.pub_twist.publish(linear =0, angular = move_towards_color)
+
             for i in range (360):
+            #Will loop through all the angles and store the angle at which 
+            #the closest object to the robot is located
+            if data.ranges[i] < shortest_distance and not data.ranges[i]==0:
+                shortest_distance = data.ranges[i]
+                min_i = i
+
+            if min_i < 10 or min_i > 350:
+                new_lin = kp * (self.distance_object-.097)
+                move_foward = Vector3(new_lin, 0,0)
+                self.pub_twist.publish(linear = move_foward, angular = 0)
+            
+                
+
+
+
+
+
             #Will loop through all the angles and store the angle at which 
             #the closest object to the robot is located
 
@@ -128,6 +158,10 @@ class Action(object):
                 next_state += 1
             curr_state = next_state
         
+    def run(self):
+        rospy.spin()
 
 
-
+if __name__== '__main__':
+    node = Action()
+    node.run()
