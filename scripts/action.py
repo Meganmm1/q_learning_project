@@ -61,89 +61,118 @@ class Action(object):
         self.matrix = np.loadtxt(open("q_matrix.csv", "rb"), delimiter=",", skiprows=0)
         print(self.matrix)
         self.image_process = False
-        
+        while not self.image_process:
+            i = 1
         if self.image_process == True:
             print("hi")
+            self.choose_actions()
+        
+        
             
 
     def image_callback(self,msg):
         # converts the incoming ROS message to OpenCV format and HSV (hue, saturation, value)
         print("image_recieved")
-        self.image = self.bridge.imgmsg_to_cv2(msg,desired_encoding='bgr8')
-        
+        image = self.bridge.imgmsg_to_cv2(msg,desired_encoding='bgr8')
+        self.image = image
+
         self.image_process = True
         #self.choose_actions()
         print(self.image_process)
+        return
+        
     
     def scanner_callback(self,data):
         self.distance_object = data.ranges[0]
 
 
 
-    def find_color(self):   
-        image = self.image
-        
+    def find_color(self):  
+        print("look for color")
         if self.action != -1:
+            image = self.image
             hsv = cv2.cvtColor(image, cv2.COLOR_BGR2HSV)
             action = (self.actions[self.action]) #get corresponding action for number
             print("action",action)
-            color = action['object']
-            
+            color = action['object']    
             ar_tag = action['tag']
             #i think we would only need one lower and upper bound as we will only be 
             #be looking at one color at a time
             if color == "pink":
-                lower = numpy.array([164, 63, 159])
-                upper = numpy.array([164, 192, 255])
+                    lower = numpy.array([147, 63, 159])
+                    upper = numpy.array([168, 192, 255])
             elif color == "green":
-                lower = numpy.array([60, 63, 192])
-                upper = numpy.array([60, 192, 255])
+                    lower = numpy.array([40, 63, 192])
+                    upper = numpy.array([65, 192, 255])
             else:
-                lower = numpy.array([90, 63, 255])
-                upper = numpy.array([104, 255, 255])
-            
-            print("COLOR " + str(color))
-            print("tar ag" + str(ar_tag))
-            # this erases all pixels that aren't pink,green,blue
-            mask0 = cv2.inRange(hsv, lower, upper)             
-           
-            #set the dimensions of the image
-            h,w,d = image.shape
-
-            # using moments() function, the center of the yellow pixels is determined
-            M = cv2.moments(final_mask)
-            #im pretty sure this find the center of any of the colored pixels based off the mask
-            # if there are any pink,green,blue pixels found
-            if M['m00'] > 0:
-            # center of the pixels in the image
-                cx = int(M['m10']/M['m00'])
-                cy = int(M['m01']/M['m00'])
-
-            #this is if we want the circle to visualize
-            #cv2.circle(image, (cx, cy), 20, (0,0,255), -1) 
-            while new_ang != 0:
-                kp = .1/w
-                new_ang = kp*(w*.5 - cx)
-                move_towards_color= Vector3(0,0,new_ang)
-                self.pub_twist.publish(linear =0, angular = move_towards_color)
-                print("first publishing")
-
-            for i in range (360):
-            #Will loop through all the angles and store the angle at which 
-            #the closest object to the robot is located
-                if data.ranges[i] < shortest_distance and not data.ranges[i]==0:
-                    shortest_distance = data.ranges[i]
-                    min_i = i
-
-            if min_i < 10 or min_i > 350:
-                new_lin = kp * (self.distance_object-.097)
-                move_foward = Vector3(new_lin, 0,0)
-                self.pub_twist.publish(linear = move_foward, angular = 0)
-                print("second publishing")
-            
+                    lower = numpy.array([90, 63, 255])
+                    upper = numpy.array([104, 255, 255])
                 
-
-
+            print("COLOR: " + str(color))
+            print("ar tag: " + str(ar_tag))
+                # this erases all pixels that aren't pink,green,blue
+            mask = cv2.inRange(hsv, lower, upper)             
+            
+                #set the dimensions of the image
+            h,w,d = image.shape
+            
+            self.w = w
+            print("width = " + str(self.w))
+                # using moments() function, the center of the yellow pixels is determined
+            M = cv2.moments(mask)
+                #im pretty sure this find the center of any of the colored pixels based off the mask
+                # if there are any pink,green,blue pixels found
+                
+            if M['m00'] > 0:
+                # center of the pixels in the image
+                self.cx = int(M['m10']/M['m00'])
+                cy = int(M['m01']/M['m00'])
+            
+                w = self.w
+                cx = self.cx
+                #this is if we want the circle to visualize
+                #cv2.circle(image, (cx, cy), 20, (0,0,255), -1) 
+                kp = .2/w
+                new_ang = kp*(w*.5 - cx)
+                if abs(new_ang) > 0.005:
+                    new_ang = kp*(w*.5 - cx)
+                    print(new_ang)
+                    move_towards_color= Vector3(0,0,new_ang)
+                    my_twist = Twist(
+                        linear = Vector3(0,0,0), 
+                        angular = move_towards_color
+                    )
+                    rospy.sleep(1)
+                    self.pub_twist.publish(my_twist)
+                    
+                    print("first publishing")
+                else:
+                    kp = 0.1
+                    while self.distance_object  > 0.097:
+                        new_lin = kp * (self.distance_object-.097)
+                        move_foward = Vector3(new_lin, 0,0)
+                        rospy.sleep(1)
+                        self.pub_twist.publish(linear = move_foward, angular = Vector3(0,0,0))
+                        print("second publishing")
+                    print("close enough")
+                    return True
+            else:
+                print("color not showing up")
+                my_twist = Twist(linear = Vector3(0,0,0),
+                                angular = Vector3(.3,0,0))
+                print("turn")
+                rospy.sleep(1)
+                print("sleep")
+                self.pub_twist.publish(my_twist)
+                rospy.sleep(1)
+                stop = Twist()
+                self.pub_twist.publish(stop)
+                print("stop")
+                return False
+                
+            
+            
+        return False
 
 
 
@@ -161,6 +190,7 @@ class Action(object):
         print("done")
 
     def choose_actions(self):
+        print("choose_action")
         matrix = self.matrix
         curr_state = 0
         for i in range(3):
@@ -172,7 +202,10 @@ class Action(object):
                     max_q = matrix[curr_state][i]
             self.action = action #set action to maximum
             print("action choosen " + str(action))
-            self.find_color()
+            action_completed = False
+            while not action_completed:
+                action_completed = self.find_color()
+                
             next_state = 0
             while self.action_matrix[curr_state][next_state] != action and next_state < 64:
                 next_state += 1
