@@ -30,8 +30,8 @@ class Action(object):
         self.action_matrix =  np.loadtxt(path_prefix + "action_matrix.txt")
         
         #open csv file ?
-        with open('q_matrix.csv','r') as file:
-            converged_matrix = csv.reader(file)
+        #with open('q_matrix.csv','r') as file:
+        #    converged_matrix = csv.reader(file)
         
 
         #fetch actions (fix this?)
@@ -56,6 +56,10 @@ class Action(object):
 
         # cmd_vel publisher 
         self.pub_twist = rospy.Publisher('/cmd_vel',Twist,queue_size = 10)
+
+        self.aruco_dict = cv2.aruco.Dictionary_get(cv2.aruco.DICT_4X4_50)
+
+
         self.action = -1
         self.action_complete = False
         self.matrix = np.loadtxt(open("q_matrix.csv", "rb"), delimiter=",", skiprows=0)
@@ -86,7 +90,7 @@ class Action(object):
         sum = 0
         for i in [-3,3]:
             sum += data.ranges[i]
-        self.distance_object = sum/7
+        self.distance_object = data.ranges[0]#sum/7
         
         #print("scanner: " + str(self.distance_object))
 
@@ -101,16 +105,15 @@ class Action(object):
             print("action",action)
             color = action['object']    
             ar_tag = action['tag']
-            #i think we would only need one lower and upper bound as we will only be 
-            #be looking at one color at a time
+            #set bounds for each color
             if color == "pink":
-                    lower = numpy.array([147, 63, 159])
-                    upper = numpy.array([168, 192, 255])
+                    lower = numpy.array([147, 63, 160])
+                    upper = numpy.array([168, 255, 255])
             elif color == "green":
-                    lower = numpy.array([37, 63, 192])
-                    upper = numpy.array([65, 192, 255])
+                    lower = numpy.array([37, 63, 160])
+                    upper = numpy.array([60, 255, 255])
             else:
-                    lower = numpy.array([85, 63, 255])
+                    lower = numpy.array([85, 63, 160])
                     upper = numpy.array([104, 255, 255])
                 
             print("COLOR: " + str(color))
@@ -139,7 +142,7 @@ class Action(object):
                 #cv2.circle(image, (cx, cy), 20, (0,0,255), -1) 
                 kp = .2/w
                 new_ang = kp*(w*.5 - cx)
-                if abs(new_ang) > 0.005:
+                if abs(new_ang) > 0.0075:
                     new_ang = kp*(w*.5 - cx)
                     print(new_ang)
                     move_towards_color= Vector3(0,0,new_ang)
@@ -153,7 +156,7 @@ class Action(object):
                     print("first publishing")
                 else:
                     kp = 0.1
-                    while self.distance_object  > 0.097:
+                    while self.distance_object  > 0.2:
                         print(self.distance_object)
                         new_lin = kp * (self.distance_object-.097)
                         move_foward = Vector3(new_lin, 0,0)
@@ -199,6 +202,20 @@ class Action(object):
             #have robot place object
         print("done")
 
+    def find_ar(self):
+        print("look for ar tag")
+        ar_tag = self.actions[self.action]['tag']
+        aruco_dict = self.aruco_dict
+        # search for tags from DICT_4X4_50 in a GRAYSCALE image
+        corners, ids, rejected_points = cv2.aruco.detectMarkers(grayscale_image, aruco_dict)
+        num_tag = 0
+        if len(corners) > 0:
+            print("at least one tag found")
+            for i in len(corners):
+                if ids[i] == ar_tag:
+                    print("correct ar tag")
+
+
     def choose_actions(self):
         print("choose_action")
         matrix = self.matrix
@@ -215,6 +232,7 @@ class Action(object):
             action_completed = False
             while not action_completed:
                 action_completed = self.find_color()
+
                 
             next_state = 0
             while self.action_matrix[curr_state][next_state] != action and next_state < 64:
