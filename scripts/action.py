@@ -72,18 +72,23 @@ class Action(object):
 
     def image_callback(self,msg):
         # converts the incoming ROS message to OpenCV format and HSV (hue, saturation, value)
-        print("image_recieved")
+        #print("image_recieved")
         image = self.bridge.imgmsg_to_cv2(msg,desired_encoding='bgr8')
         self.image = image
 
         self.image_process = True
         #self.choose_actions()
-        print(self.image_process)
+        #print(self.image_process)
         return
         
     
     def scanner_callback(self,data):
-        self.distance_object = data.ranges[0]
+        sum = 0
+        for i in [-3,3]:
+            sum += data.ranges[i]
+        self.distance_object = sum/7
+        
+        #print("scanner: " + str(self.distance_object))
 
 
 
@@ -102,10 +107,10 @@ class Action(object):
                     lower = numpy.array([147, 63, 159])
                     upper = numpy.array([168, 192, 255])
             elif color == "green":
-                    lower = numpy.array([40, 63, 192])
+                    lower = numpy.array([37, 63, 192])
                     upper = numpy.array([65, 192, 255])
             else:
-                    lower = numpy.array([90, 63, 255])
+                    lower = numpy.array([85, 63, 255])
                     upper = numpy.array([104, 255, 255])
                 
             print("COLOR: " + str(color))
@@ -149,21 +154,26 @@ class Action(object):
                 else:
                     kp = 0.1
                     while self.distance_object  > 0.097:
+                        print(self.distance_object)
                         new_lin = kp * (self.distance_object-.097)
                         move_foward = Vector3(new_lin, 0,0)
                         rospy.sleep(1)
                         self.pub_twist.publish(linear = move_foward, angular = Vector3(0,0,0))
                         print("second publishing")
+                    #pick up object
                     print("close enough")
                     return True
             else:
                 print("color not showing up")
-                my_twist = Twist(linear = Vector3(0,0,0),
-                                angular = Vector3(.3,0,0))
-                print("turn")
+                my_twist = Twist(
+                    linear=Vector3(0.0, 0, 0),
+                    angular=Vector3(0, 0, 0.15)
+                )
+                # allow the publisher enough time to set up before publishing the first msg
                 rospy.sleep(1)
-                print("sleep")
+                # publish the message
                 self.pub_twist.publish(my_twist)
+                print("turn published")
                 rospy.sleep(1)
                 stop = Twist()
                 self.pub_twist.publish(stop)
