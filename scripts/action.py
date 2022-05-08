@@ -29,12 +29,10 @@ class Action(object):
         #fetch pre-build action matrix
         self.action_matrix =  np.loadtxt(path_prefix + "action_matrix.txt")
         
-        #open csv file ?
-        #with open('q_matrix.csv','r') as file:
-        #    converged_matrix = csv.reader(file)
+     
         
 
-        #fetch actions (fix this?)
+        #fetch actions 
         colors = ["pink", "green", "blue"]
         self.actions = np.loadtxt(path_prefix + "actions.txt")
         self.actions = list(map(
@@ -58,8 +56,21 @@ class Action(object):
         self.pub_twist = rospy.Publisher('/cmd_vel',Twist,queue_size = 10)
 
         self.aruco_dict = cv2.aruco.Dictionary_get(cv2.aruco.DICT_4X4_50)
+        
+        #ROBOT ARM CODE
+        # the interface to the group of joints making up the turtlebot3
+        # openmanipulator arm
+        self.move_group_arm = moveit_commander.MoveGroupCommander("arm")
 
+        # the interface to the group of joints making up the turtlebot3
+        # openmanipulator gripper
+        self.move_group_gripper = moveit_commander.MoveGroupCommander("gripper")
 
+        # Reset arm position
+        self.move_group_arm.go(np.deg2rad([-1,-39,13,-29]))
+        print("ready")
+
+        #ACTION CODE
         self.action = -1
         self.action_complete = False
         self.matrix = np.loadtxt(open("q_matrix.csv", "rb"), delimiter=",", skiprows=0)
@@ -70,6 +81,9 @@ class Action(object):
         if self.image_process == True:
             print("hi")
             self.choose_actions()
+        
+        
+
         
         
             
@@ -84,7 +98,7 @@ class Action(object):
         #self.choose_actions()
         #print(self.image_process)
         return
-        
+    
     
     def scanner_callback(self,data):
         sum = 0
@@ -118,10 +132,11 @@ class Action(object):
                 
             print("COLOR: " + str(color))
             print("ar tag: " + str(ar_tag))
-                # this erases all pixels that aren't pink,green,blue
+            
+            # this erases all pixels that aren't pink,green,blue
             mask = cv2.inRange(hsv, lower, upper)             
             
-                #set the dimensions of the image
+            #set the dimensions of the image
             h,w,d = image.shape
             
             self.w = w
@@ -140,6 +155,7 @@ class Action(object):
                 cx = self.cx
                 #this is if we want the circle to visualize
                 #cv2.circle(image, (cx, cy), 20, (0,0,255), -1) 
+
                 kp = .2/w
                 new_ang = kp*(w*.5 - cx)
                 if abs(new_ang) > 0.0075:
@@ -201,23 +217,100 @@ class Action(object):
             #have robot go towards ar tag
             #have robot place object
         print("done")
+    
+    def move_arm(self,direction):
+        pickup_object = [-1,15,18,-29]
+        lift_object = [-1,-39,13,-29]
+        #convert to rad
+        for i in range(4):
+            pickup_object[i] = np.deg2rad(pickup_object[i])
+            lift_object[i] = np.deg2rad(lift_object[i])
+        gripper_open = [0.006,0.006]
+        gripper_closed = [-0.002,-0.002]
+
+        if direction == 1:
+            #open gripper
+            
+            self.move_group_gripper.go(gripper_open)
+            self.move_group_gripper.stop()
+            print("opened gripper")
+            rospy.sleep(2)
+
+            #move arm down
+            
+            self.move_group_arm.go(pickup_object)
+            print("picked_up")
+            rospy.sleep(1)
+            self.move_group_arm.stop()
+            print("moved_arm")
+            rospy.sleep(2)
+           
+            #close gripper
+            self.move_group_gripper.go(gripper_closed)
+            self.move_group_gripper.stop()
+            print("closed gripper")
+            rospy.sleep(2)
+
+            #move arm up
+            self.move_group_arm.go(lift_object)
+            self.move_group_arm.stop()
+            print("arm_down")
+            rospy.sleep(2)
+
+            #code to make it move down
+        elif direction == 2:
+            
+            #move arm down
+            self.move_group_arm.go(pickup_object)
+            rospy.sleep(1)
+            self.move_group_arm.stop()
+            print("put_down")
+            rospy.sleep(2)
+            
+            #open gripper
+            self.move_group_gripper.go(gripper_open)
+            self.move_group_gripper.stop()
+            print("opened gripper")
+            rospy.sleep(2)
 
     def find_ar(self):
+        distance_from_ar = .3
+        kp = 0.1
         print("look for ar tag")
+        
+        # turn the image into a grayscale
+        grayscale_image = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
+        #initializes the ar tag
         ar_tag = self.actions[self.action]['tag']
         aruco_dict = self.aruco_dict
         # search for tags from DICT_4X4_50 in a GRAYSCALE image
         corners, ids, rejected_points = cv2.aruco.detectMarkers(grayscale_image, aruco_dict)
+        print(cv2.aruco.detectMarkers)
         num_tag = 0
+        #intdex into the corners based off the ids and then you index into the zeros column and
+        #take the average of the x values
         if len(corners) > 0:
             print("at least one tag found")
             for i in len(corners):
                 if ids[i] == ar_tag:
                     print("correct ar tag")
+                    for j in self.aruco_dict.corners[j]:
+                        x_average += 
 
+        #distance to x_average ?
+        while self.distance_object  > 0.2:
+            new_lin = kp * (self.distance_object-distance_from_ar)
+            move_foward = Vector3(new_lin, 0,0)
+            rospy.sleep(1)
+            self.pub_twist.publish(linear = move_foward, angular = Vector3(0,0,0))
+                        
+        #pink goes to 3
+        #green goes to 1
+        #blue to 2
 
     def choose_actions(self):
         print("choose_action")
+        
         matrix = self.matrix
         curr_state = 0
         for i in range(3):
@@ -233,6 +326,7 @@ class Action(object):
             while not action_completed:
                 action_completed = self.find_color()
 
+            ## initalize a list and then pop them off the list to store the action values
                 
             next_state = 0
             while self.action_matrix[curr_state][next_state] != action and next_state < 64:
