@@ -5,8 +5,7 @@ import numpy as np
 import os
 from random import choice
 import time
-import cv2
-
+import moveit_commander
 
 from q_learning_project.msg import QLearningReward
 from q_learning_project.msg import QMatrix
@@ -101,10 +100,11 @@ class Action(object):
     
     
     def scanner_callback(self,data):
-        sum = 0
-        for i in [-3,3]:
-            sum += data.ranges[i]
-        self.distance_object = data.ranges[0]#sum/7
+        non_zero = []
+        for i in [-1,1]:
+            if data.ranges[i] != 0:
+                non_zero.append(data.ranges[i])
+        self.distance_object = np.average(non_zero)#data.ranges[0]#sum/7
         
         #print("scanner: " + str(self.distance_object))
 
@@ -172,15 +172,20 @@ class Action(object):
                     print("first publishing")
                 else:
                     kp = 0.1
-                    while self.distance_object  > 0.2:
+                    while self.distance_object > 0.2:
                         print(self.distance_object)
-                        new_lin = kp * (self.distance_object-.097)
+                        new_lin = kp * (self.distance_object-0.16)
                         move_foward = Vector3(new_lin, 0,0)
                         rospy.sleep(1)
                         self.pub_twist.publish(linear = move_foward, angular = Vector3(0,0,0))
                         print("second publishing")
+                    stop = Twist()
+                    self.pub_twist.publish(stop)
                     #pick up object
                     print("close enough")
+                    self.move_arm(1)
+                    rospy.sleep(1)
+                    self.move_arm(2)
                     return True
             else:
                 print("color not showing up")
@@ -193,9 +198,9 @@ class Action(object):
                 # publish the message
                 self.pub_twist.publish(my_twist)
                 print("turn published")
-                rospy.sleep(1)
-                stop = Twist()
-                self.pub_twist.publish(stop)
+                #rospy.sleep(1)
+                #stop = Twist()
+                #self.pub_twist.publish(stop)
                 print("stop")
                 return False
                 
@@ -225,7 +230,7 @@ class Action(object):
         for i in range(4):
             pickup_object[i] = np.deg2rad(pickup_object[i])
             lift_object[i] = np.deg2rad(lift_object[i])
-        gripper_open = [0.006,0.006]
+        gripper_open = [0.0075,0.0075]
         gripper_closed = [-0.002,-0.002]
 
         if direction == 1:
@@ -242,9 +247,9 @@ class Action(object):
             print("picked_up")
             rospy.sleep(1)
             self.move_group_arm.stop()
-            print("moved_arm")
             rospy.sleep(2)
-           
+            print("moved_arm")
+
             #close gripper
             self.move_group_gripper.go(gripper_closed)
             self.move_group_gripper.stop()
@@ -273,6 +278,11 @@ class Action(object):
             print("opened gripper")
             rospy.sleep(2)
 
+            self.move_group_arm.go(np.deg2rad([-1,-39,13,-29]))
+            rospy.sleep(1)
+            print("ready")
+
+
     def find_ar(self):
         distance_from_ar = .3
         kp = 0.1
@@ -292,10 +302,12 @@ class Action(object):
         if len(corners) > 0:
             print("at least one tag found")
             for i in len(corners):
-                if ids[i] == ar_tag:
+                if ids[i][0] == ar_tag:
                     print("correct ar tag")
-                    for j in self.aruco_dict.corners[j]:
-                        x_average += 
+                    x_sum = 0
+                    for j in self.aruco_dict.corners[i][0]:
+                        x_sum += j[0]
+                    x_avg = x_sum / 4
 
         #distance to x_average ?
         while self.distance_object  > 0.2:
@@ -303,6 +315,7 @@ class Action(object):
             move_foward = Vector3(new_lin, 0,0)
             rospy.sleep(1)
             self.pub_twist.publish(linear = move_foward, angular = Vector3(0,0,0))
+        self.move_arm(2)
                         
         #pink goes to 3
         #green goes to 1
