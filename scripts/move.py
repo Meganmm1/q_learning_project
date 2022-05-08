@@ -7,7 +7,7 @@ import math
 import numpy as np
 
 from q_learning_project.msg import RobotMoveObjectToTag
-from q_learning_project.msg import RobotArmMovement
+from q_learning_project.msg import QMatrixRow
 
 
 
@@ -15,10 +15,10 @@ class ArmMove(object):
 
     def __init__(self):
          # initialize this node
-        rospy.init_node('move arm')
+        rospy.init_node('move_arm')
 
         # Traffic status subscriber
-        rospy.Subscriber("/q_learning/arm_movement", RobotArmMovement, self.movement_received)
+        rospy.Subscriber("/q_learning/arm_movement", QMatrixRow, self.movement_received)
 
         # the interface to the group of joints making up the turtlebot3
         # openmanipulator arm
@@ -29,7 +29,7 @@ class ArmMove(object):
         self.move_group_gripper = moveit_commander.MoveGroupCommander("gripper")
 
         # Reset arm position
-        self.move_group_arm.go([0,0,0,0], wait=True)
+        self.move_group_arm.go([0,0,0,0])
         print("ready")
 
     def movement_received(self,data):
@@ -45,7 +45,7 @@ class ArmMove(object):
             self.move_group_gripper.stop()
 
             #move arm down
-            self.move_group_arm.go(pickup_object,wait=True)
+            self.move_group_arm.go(pickup_object)
             self.move_group_arm.stop()
 
             #close gripper
@@ -53,7 +53,7 @@ class ArmMove(object):
             self.move_group_gripper.stop()
 
             #move arm down
-            self.move_group_arm.go(lift_object,wait=True)
+            self.move_group_arm.go(lift_object)
             self.move_group_arm.stop()
         
     def run(self):
