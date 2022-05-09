@@ -23,9 +23,47 @@
 - We determine when to stop iterating through the Q-learning algorithm in the update_q_matrix function. 
 - In order to determine this value we ran our code, which updated and printed our a matrix after each update, several times to find a value that allowed the q-matrix to converge on values. We found that the value we set (150) was sufficient to update all the states that would lead to possible rewards and eventually allow our matrix to converge.
 
+## Robot perception description
+### Identifying locations and identities of each colored object
+- We determine the identities and location of the colored objects in the find_color function
+- In order to find the colored object we subscribed to the RGB camera topic and determined the HSV values for pink, green, and blue. We isolated the color by creating a mask to get rid of every colored pixel that isn't the color we want and then center the pixels in the image using the cv2 moment function. Once we have these bounds we can subscribe to the laser scan topic and determine the location of these colored objects. We use proprtional control to rotate the robot so that the colored image is directly infront of the robot and then move the robot foward until it gets to a set distance. 
+### Identifying locations and identities of AR tags.
+- We determine the identities and location of the AR tags in the __ function.
+- In order to find the location of the AR tag we 
+
+## Robot manipulation and movement
+### Moving to the right spot in order to pick up a colored object
+- We determine the distance to the right colored object in the find_color function. 
+- Previously to writing the code we predetermined a fix distance to take into account the arm movemenmt and the laser scan distance. We used this fix distance with proportional control to ensure that when the robot gets to this distance infront of the colored object it stops to pick it up. 
+
+### Picking up the colored object
+- We pick up the colored object using the move_arm function.
+- In order to determine the right paramaters for the joints of the arm, we used Rviz to help isolate the right angles. Within the move_arm function we hardcoded these angles and split the arm movement into 4 seperate motions consisting of opening the gripper, moving the arm up and down, and then closing the gripper. 
+
+### Moving to the desired destination (AR tag) with the colored object
+- We determine where to move with the colored object in the __ function
+- In order to 
+
+### Putting the object back down at the desired destination
+- We determine how to move the object back down to the desired destination in the move_arm function.
+- In order to
 
 
-# Q-learning Algorithm
+## Challanges
+- One of the main challanges that we encountered in this project was malfunction issues with the robot. There were many instances in which we spent debugging out code yet the real issue was that the robot had either lost connection or had stoped reciving instructions. We determined that to help combat this issue it worked to close out of our terminal and reconnect to the robot. Once we realized that the issue relied with the robot it was much easier to get our code to run.
+- Another challange that we faced was also getting all the functions to execute in a cohesive manner. Many times our robot would move to the colored object and then begin to find the ar tag without moving the arm or move to the colored object and execute a different part of the arm code. We were able to fine tune our paramaters and get the functions to execute in a linear manner by using many print statement to follow along with the messages being publish as well as introducing substatntial sleep statements between function calls. 
+- Another challange was that the code to read the converged matrix wasnt working on Megans computer. We initially though the issue was with the code we had written but once we realized that the code was able to run efficiently on Emilias computer we just continued to run code on hers. This was a challange considering that we were only able to run and test code on one computer. We were not able to fix Megan's computer but since team work make the dream work we were still able to work and finish the projet.
+
+## Future Work
+- If we had more time we would try to implement odometry to move the robot back to its original location so that it can be in better position to scan to colors and AR tags. We found that when the robot was a little far from the tag it would sense the tag but would loose connection and would keep turning to find it again rather than moving towards it. By having the robot move to the middle I believe we can minimize the room for error to ensure that the robot moves foward when the tag is located. 
+- Another thing we could implement is that we begin with the arm in an upward position where we realized that it might be more efficient to have the robot go in with a an opened gripper and 
+
+## Takeaways
+
+
+
+# Implementation Plan
+## Q-learning Algorithm
 ### Executing the Q-learning algorithm
 - To execute the Q-learning algorithm, we will first create a Q-matrix with rows that represent all possible states (64) and each column representing all possible actions (9) which can be found in self.actions in q_learning.py. To fill in the matrix, we will start all of our trajectories in state 0 with all objects at the origin. From there we will choose a random action to transition into another state and use this to calculate an updated reward value in our matrix. 
 - To test this, we will use the phantom robot node that was already made for us and we will continuously print out our matrix to check if it is updating properly.
@@ -60,4 +98,3 @@
 ### Timeline
 - We would like to have a version of the Q-matrix code by Friday, April 29th, which would allow us to debug over the weekend. We will then turn in the intermediate deliverable on Tuesday.
 - We would like to have robot perception working by May 5th and the robot manipulation and movement by the 8th, leaving us a few days to debug.
-
