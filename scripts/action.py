@@ -26,10 +26,7 @@ class Action(object):
         rospy.init_node("actions")
 
         #fetch pre-build action matrix
-        self.action_matrix =  np.loadtxt(path_prefix + "action_matrix.txt")
-        
-     
-        
+        self.action_matrix =  np.loadtxt(path_prefix + "action_matrix.txt")        
 
         #fetch actions 
         colors = ["pink", "green", "blue"]
@@ -69,6 +66,8 @@ class Action(object):
         self.move_group_arm.go(np.deg2rad([-1,-39,13,-29]))
         print("ready")
 
+        self.found_color = False   
+
         #ACTION CODE
         self.action = -1
         self.min_ang = 0
@@ -104,13 +103,14 @@ class Action(object):
         non_zero = []
         min_dist = 1000
         min_angle = 0
-        for i in [-5,5]:
+        for i in range(-10,10):
             if data.ranges[i] != 0:
                 non_zero.append(data.ranges[i])
                 if data.ranges[i] < min_dist:
                     min_angle = i
                     min_dist = data.ranges[i]
         if len(non_zero) > 0:
+            #print(non_zero)
             self.distance_object = min_dist
             #self.distance_object = np.average(non_zero)#data.ranges[0]#sum/7
         else:
@@ -126,7 +126,15 @@ class Action(object):
         self.distance_object = np.average(non_zero)
         self.min_ang = 0 '''
 
-
+    def final_rotate(self):
+        print("final rotate")
+        print(self.min_ang)
+        kp = 1.2*.017
+        while self.min_ang != 0:
+            print("final adjustments")
+            new_ang = kp*(self.min_ang)
+            myTwist = Twist(linear = Vector3(),angular = Vector3(0,0,new_ang))
+            self.pub_twist.publish(new_ang)
 
     def find_color(self):  
         print("look for color")
@@ -163,7 +171,6 @@ class Action(object):
             M = cv2.moments(mask)
                 #im pretty sure this find the center of any of the colored pixels based off the mask
                 # if there are any pink,green,blue pixels found
-                
             if M['m00'] > 0:
                 # center of the pixels in the image
                 self.cx = int(M['m10']/M['m00'])
@@ -174,50 +181,53 @@ class Action(object):
                 #this is if we want the circle to visualize
                 #cv2.circle(image, (cx, cy), 20, (0,0,255), -1) 
                 
-                kp = .15/w
+                kp = .23/w
                 new_ang = kp*(w*.5 - 5 - cx)
-                if abs(new_ang) > 0.004:
-                    new_ang = kp*(w*.5 - 5 - cx)
-                    print(new_ang)
-                    move_towards_color= Vector3(0,0,new_ang)
-                    my_twist = Twist(
-                        linear = Vector3(0,0,0), 
-                        angular = move_towards_color
-                    )
+                print("new ang " + str(new_ang))
+                print("distance " + str(self.distance_object))
+                print(new_ang)
+                if abs(new_ang) > 0.006:
+                    self.found_color = True
+                elif abs(new_ang) > 0.05:
+                    self.found_color = False
+                if self.found_color: #if it has found the color and gotten close then start moving forward
+                    print("has found color")
+                    kp2 = 0.15
                     rospy.sleep(1)
-                    self.pub_twist.publish(my_twist)
-                    
-                    print("first publishing")
-                else:
-                    kp = 0.3
-                    rospy.sleep(1)
-                    if self.distance_object > 0.23:
+                    if self.distance_object > 0.23: #greater than stopping distance
                         #rospy.sleep(1)
-                        if self.distance_object > 1:
+                        if self.distance_object > 0.5:
                             print("far away")
-                            new_lin = 0.075
+                            new_lin = 0.05
                         else:
-                            new_lin = kp * (self.distance_object-0.16)
-                        print(self.distance_object)
-                        move_foward = Vector3(new_lin, 0,0)
-                        new_ang = kp*(-self.min_ang)
-                        print(new_ang)
-                        rospy.sleep(1)
-                        self.pub_twist.publish(linear = move_foward, angular = Vector3(0,0,new_ang))
-                        print("second publishing")
-                        return False
+                            new_lin = kp2 * (self.distance_object-0.16)
                     else:
+                        #close to object
                         stop = Twist()
                         self.pub_twist.publish(stop)
                         #pick up object
                         print("close enough")
+                        self.final_rotate()
                         self.move_arm(1)
                         r = rospy.Rate(2)
-                        myTwist = Twist(linear = Vector3(-0.2,0,0), angular = Vector3(0,0,0))
+                        myTwist = Twist(linear = Vector3(-0.,0,0), angular = Vector3(0,0,0))
                         self.pub_twist.publish(myTwist)
                         rospy.sleep(1)
                         #self.find_ar()
                         return True
+                else:
+                    new_lin = 0
+                new_ang = kp*(w*.5 - 5 - cx)
+                move_towards_color= Vector3(0,0,new_ang)
+                my_twist = Twist(
+                        linear = Vector3(new_lin,0,0), 
+                        angular = move_towards_color
+                )
+                
+                rospy.sleep(1)
+                self.pub_twist.publish(my_twist)
+                return False    
+
             else:
                 print("color not showing up")
                 my_twist = Twist(
@@ -234,13 +244,8 @@ class Action(object):
                 #self.pub_twist.publish(stop)
                 print("stop")
                 return False
-                
-            
-            
-        return False
-
-
-
+        else:
+            return False
             #Will loop through all the angles and store the angle at which 
             #the closest object to the robot is located
 
