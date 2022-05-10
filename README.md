@@ -34,7 +34,7 @@
 ## Robot manipulation and movement
 ### Moving to the right spot in order to pick up a colored object
 - We determine the distance to the right colored object in the find_color function. 
-- Previously to writing the code we predetermined a fix distance to take into account the arm movemenmt and the distance between the laser scanner. We used this fix distance to set the linear velocity with proportional control to ensure that when the robot gets to this distance infront of the colored object it stops to pick it up. 
+- Previous to writing the code we predetermined a fix distance to take into account the arm movemenmt and the distance between the laser scanner. We used this fix distance to set the linear velocity with proportional control to ensure that when the robot gets to this distance infront of the colored object it stops to pick it up. 
 
 ### Picking up the colored object
 - We pick up the colored object using the move_arm function.
