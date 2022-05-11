@@ -26,27 +26,27 @@
 ## Robot perception description
 ### Identifying locations and identities of each colored object
 - We determine the identities and location of the colored objects in the find_color function
-- In order to find the colored object we subscribed to the RGB camera topic and determined the HSV values for pink, green, and blue. We isolated the color by creating a mask to get rid of every colored pixel that isn't the color we want and then center the pixels in the image using the cv2 moment function. Once we have these bounds we can subscribe to the laser scan topic and determine the location of these colored objects. We use proprtional control to rotate the robot so that the colored image is directly infront of the robot and then move the robot foward until it gets to a set distance. 
-### Identifying locations and identities of AR tags.
-- We determine the identities and location of the AR tags in the __ function.
-- In order to find the location of the AR tag we 
+- In order to find the colored object we subscribed to the RGB camera topic and determined the HSV values for pink, green, and blue. We isolated the color by creating a mask to get rid of every colored pixel that isn't the color we want and then center the pixels in the image using the cv2 moment function. Once we have these bounds the RGB camera can determine when the robot senses the colored objects and then the Laser Scan topic is used to determine the location of these colored objects. We use proprtional control to rotate the robot so that the colored image is directly infront of the robot and then move the robot foward until it gets to a set distance. 
+### Identifying locations and identities of AR tags. M
+- We determine the identities and location of the AR tags in the find_ar function.
+- In order to find the location of the AR tag we index into the dictionary to find the correct ar id. Once this id is found we index into the 4 by 2 array and take an average of the x values. These values represent the corner of the tag and by taking the average we can isolate the middle of the tag. Similar to the colored object, we use proportional control with the average x value to turn the robot towards the AR tag. Once the robot is facing the AR tag, we use the LiDAR to determine how far away the tag is.
 
 ## Robot manipulation and movement
 ### Moving to the right spot in order to pick up a colored object
 - We determine the distance to the right colored object in the find_color function. 
-- Previously to writing the code we predetermined a fix distance to take into account the arm movemenmt and the laser scan distance. We used this fix distance with proportional control to ensure that when the robot gets to this distance infront of the colored object it stops to pick it up. 
+- Previous to writing the code we predetermined a fix distance to take into account the arm movemenmt and the distance between the laser scanner. We used this fix distance to set the linear velocity with proportional control to ensure that when the robot gets to this distance infront of the colored object it stops to pick it up. 
 
 ### Picking up the colored object
 - We pick up the colored object using the move_arm function.
-- In order to determine the right paramaters for the joints of the arm, we used Rviz to help isolate the right angles. Within the move_arm function we hardcoded these angles and split the arm movement into 4 seperate motions consisting of opening the gripper, moving the arm up and down, and then closing the gripper. 
+- In order to determine the right paramaters for the joints of the arm, we used Rviz to help isolate the right angles. Within the move_arm function we hardcoded these angles and split the arm movement into 4 seperate motions consisting of opening the gripper, moving the arm up and down, and then closing the gripper. We subscribe to the MoveIt package to get the arm to move to the paramaters set. We then used the same logic for trying to move the arm down so that it places the object infront of the AR tag. We call this function in our find_color function and in our find_ar function so that when the colored object is found it also pics it up and when the ar tag is found the robot puts it down. 
 
-### Moving to the desired destination (AR tag) with the colored object
-- We determine where to move with the colored object in the __ function
-- In order to 
+### Moving to the desired destination (AR tag) with the colored object M
+- We determine where to move with the colored object in the find_ar function
+- After turning to face the AR tag, we use the LiDAR to sense the distance of the robot to the object that is in front of the robot by only measuring a few degrees around zero. We then use proportional control to move towards the object in front of the robot until it is 0.45 m away. 
 
 ### Putting the object back down at the desired destination
 - We determine how to move the object back down to the desired destination in the move_arm function.
-- In order to
+- In order to move the object back down we subscribe to the MoveIt package and assign the joints to the predetermined degrees which were converted to radian values. 
 
 
 ## Challanges
@@ -56,10 +56,10 @@
 
 ## Future Work
 - If we had more time we would try to implement odometry to move the robot back to its original location so that it can be in better position to scan to colors and AR tags. We found that when the robot was a little far from the tag it would sense the tag but would loose connection and would keep turning to find it again rather than moving towards it. By having the robot move to the middle I believe we can minimize the room for error to ensure that the robot moves foward when the tag is located. 
-- Another thing we could implement is that we begin with the arm in an upward position where we realized that it might be more efficient to have the robot go in with a an opened gripper and 
-
+- Something else we could try implementing is that our robot turned pretty slowly as it was trying to locate objects. Due to this our runs took substantial time to complete. We didnt want to increase the rotation speed too much because then there wouldn't be enough time for the scanner and camera to detect the object or ar tag. With more time we could further fine tune these paramaters. 
 ## Takeaways
-
+- Main takeaway is that alot of the issues with the project were factors that pertained to the robot so definetly starting early and being able to troubleshoot can be very effective.
+- Another key take away is that it might be worthwhile optimizing the code with regard to timing erros since after multiple runs our terminal would get time out errors and we would have to rerun the whole terminal which got pretty tedious after a while. 
 
 
 # Implementation Plan
