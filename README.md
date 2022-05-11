@@ -98,3 +98,7 @@
 ### Timeline
 - We would like to have a version of the Q-matrix code by Friday, April 29th, which would allow us to debug over the weekend. We will then turn in the intermediate deliverable on Tuesday.
 - We would like to have robot perception working by May 5th and the robot manipulation and movement by the 8th, leaving us a few days to debug.
+
+# GIF
+![q_learning.GIF.gif](https://github.com/Meganmm1/q_learning_project/blob/1ad6012151553f20c57b6bf9b49067a0458e7d3c/q_learning.GIF.gif)
+
