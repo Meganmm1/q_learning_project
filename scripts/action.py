@@ -23,6 +23,7 @@ path_prefix = os.path.dirname(__file__) + "/action_states/"
 class Action(object):
     
     def __init__ (self):
+        #initialize node
         rospy.init_node("actions")
 
         #fetch pre-build action matrix
@@ -51,6 +52,7 @@ class Action(object):
         # cmd_vel publisher 
         self.pub_twist = rospy.Publisher('/cmd_vel',Twist,queue_size = 10)
 
+        #import ar tag library
         self.aruco_dict = cv2.aruco.Dictionary_get(cv2.aruco.DICT_4X4_50)
         
         #ROBOT ARM CODE
@@ -70,16 +72,17 @@ class Action(object):
         self.found_color = False   
 
         #ACTION CODE
+        #initialize action as -1
         self.action = -1
+        #initialize angle of minimum distance as 0
         self.min_ang = 0
-        self.action_complete = False
-        self.matrix = np.loadtxt(open("q_matrix.csv", "rb"), delimiter=",", skiprows=0)
+        
+        self.matrix = np.loadtxt(open("q_matrix.csv", "rb"), delimiter=",", skiprows=0) #read in q-matrix
         print(self.matrix)
         self.image_process = False
-        while not self.image_process:
+        while not self.image_process: #wait for first image to be processed for actions to start
             i = 1
         if self.image_process == True:
-            print("hi")
             self.choose_actions()
         
         
@@ -92,16 +95,14 @@ class Action(object):
         # converts the incoming ROS message to OpenCV format and HSV (hue, saturation, value)
         #print("image_recieved")
         image = self.bridge.imgmsg_to_cv2(msg,desired_encoding='bgr8')
-        self.image = image
+        self.image = image #save image to self.image so other functions can access
 
-        self.image_process = True
-        #self.choose_actions()
-        #print(self.image_process)
+        self.image_process = True 
         return
     
     
     def scanner_callback(self,data):
-        non_zero = []
+        non_zero = [] #make array with array of all non zero values between -10 and 10 degrees
         min_dist = 1000
         min_angle = 0
         for i in range(-10,11):
@@ -110,44 +111,26 @@ class Action(object):
                 if data.ranges[i] < min_dist:
                     min_angle = i
                     min_dist = data.ranges[i]
-        if len(non_zero) > 0:
+        if len(non_zero) > 0: 
             #print(non_zero)
-            self.distance_object = min_dist
+            self.distance_object = min_dist #set the distance to the object as the minimum of non zero values
             #self.distance_object = np.average(non_zero)#data.ranges[0]#sum/7
         else:
-            self.distancce_object = 0.3
-        self.min_ang = min_angle
-        #print("min angle: " + str(min_angle))
-        '''else:
-            self.distance_object = 0.5
-        #print("scanner: " + str(self.distance_object))
-        non_zero = []
-        for i in [-1,1]:
-            if data.ranges[i] != 0:
-                non_zero.append(data.ranges[i])
-        self.distance_object = np.average(non_zero)
-        self.min_ang = 0 '''
-
-    def final_rotate(self):
-        print("final rotate")
-        print(self.min_ang)
-        kp = .4*.017
-        while self.min_ang != 0:
-            print("final adjustments, ang: " + str(self.min_ang))
-            new_ang = kp*(self.min_ang)
-            myTwist = Twist(linear = Vector3(),angular = Vector3(0,0,new_ang))
-            self.pub_twist.publish(myTwist)
+            self.distance_object = 1
+        self.min_ang = min_angle #set minimum angle
 
     def find_color(self):  
         print("look for color")
-        if self.action != -1:
-            image = self.image
+        if self.action != -1: #only run code after action has been initialized
+            image = self.image 
             hsv = cv2.cvtColor(image, cv2.COLOR_BGR2HSV)
+            #read image in
+            
             action = (self.actions[self.action]) #get corresponding action for number
             print("action",action)
             color = action['object']    
             ar_tag = action['tag']
-            #set bounds for each color
+            #set bounds for the correct color
             if color == "pink":
                     lower = numpy.array([147, 50, 160])
                     upper = numpy.array([168, 255, 255])
@@ -242,6 +225,7 @@ class Action(object):
 
             else:
                 print("color not showing up")
+                #if color not sensed, keep turning
                 my_twist = Twist(
                     linear=Vector3(0.0, 0, 0),
                     angular=Vector3(0, 0, 0.15)
@@ -251,24 +235,11 @@ class Action(object):
                 # publish the message
                 self.pub_twist.publish(my_twist)
                 print("turn published")
-                #rospy.sleep(1)
-                #stop = Twist()
-                #self.pub_twist.publish(stop)
+                
                 print("stop")
                 return False
         else:
             return False
-            #Will loop through all the angles and store the angle at which 
-            #the closest object to the robot is located
-
-         
-
-            #have robot turn towards correct colored object
-            #have robot get to proper distance to colored object
-            #have robot pickup object
-            #have robot turn towards correct ar tag
-            #have robot go towards ar tag
-            #have robot place object
     
     def move_arm(self,direction):
         pickup_object = np.deg2rad([-1,15,18,-29])
@@ -277,24 +248,16 @@ class Action(object):
         gripper_open = [0.018,0.018]
         gripper_closed = [-0.002,-0.002]
 
-        if direction == 0:
+        if direction == 0: #position arm to pick up
             #open gripper
             
             self.move_group_gripper.go(gripper_open)
             self.move_group_gripper.stop()
             print("opened gripper")
             rospy.sleep(2)
+          
 
-            #move arm down
-            
-            #self.move_group_arm.go(pickup_object)
-            #print("pick_up position")
-            #rospy.sleep(2)
-            #self.move_group_arm.stop()
-            #rospy.sleep(2)
-            #print("moved_arm")
-
-        if direction == 1:
+        elif direction == 1: #grap object and lift up
             
             #close gripper
             self.move_group_gripper.go(gripper_closed)
@@ -308,8 +271,8 @@ class Action(object):
             self.move_group_arm.stop()
             print("arm_up")
 
-            #code to make it move down
-        elif direction == 2:
+            `
+        elif direction == 2: #put object down
             
             #move arm down
             self.move_group_arm.go(pickup_object)
@@ -330,9 +293,9 @@ class Action(object):
 
 
     def find_ar(self):
-        rospy.sleep(1)
-        distance_from_ar = .3
-        kp = 0.1
+        rospy.sleep(1) #sleep to allow robot to reset
+        distance_from_ar = .3 #set ideal distance to ar
+        kp = 0.1 #set kp value
         print("look for ar tag")
         image= self.image
         # turn the image into a grayscale
@@ -347,34 +310,38 @@ class Action(object):
         #take the average of the x values
         w = self.w
         if len(corners) > 0:
+            #if length corners greater than 0, at least one tag found
             print("at least one tag found")
             for i in range (len(corners)):
                 print(ids[i])
-
-                if ids[i][0] == ar_tag:
+                if ids[i][0] == ar_tag: #check if the ar tag is correct
                     print("correct ar tag")
                     x_sum = 0
                     for j in corners[i][0]:
                         x_sum += j[0]
-                    x_avg = x_sum / 4
+                    x_avg = x_sum / 4 #average the x value of all four corners of the ar tag
                     kp = .075/w
-                    new_ang = kp*(w*.5 - x_avg)
-                    if abs(new_ang) > 0.0075:
+                    #use proportional control to calculate angle to turn towards ar tag
+                    new_ang = kp*(w*.5 - x_avg) 
+                    if abs(new_ang) > 0.0075: 
+                        #if angle required to turn towards tag is large than have robot turn
                         print("turning towards ar")
-                        new_ang = kp*(w*.5 - x_avg)
                         print(new_ang)
-                        move_towards_color= Vector3(0,0,new_ang)
+                        move_towards_ar= Vector3(0,0,new_ang)
                         my_twist = Twist(
                             linear = Vector3(0,0,0), 
-                            angular = move_towards_color
+                            angular = move_towards_ar
                         )
                         rospy.sleep(1)
+                        #publish turn
                         self.pub_twist.publish(my_twist)
-                        return False
+                        return False #return false because still not facing
                     else:
+                        #if angle is small, than have robot move forward towards tag
                         kp = 0.1
                         rospy.sleep(1)
                         while self.distance_object > 0.45:
+                            #use porportional control to move closer to object in front 
                             print(self.distance_object)
                             new_lin = kp * (self.distance_object-0.3)
                             move_foward = Vector3(new_lin, 0,0)
@@ -390,9 +357,10 @@ class Action(object):
                         rospy.sleep(1)
                         self.pub_twist.publish(myTwist)
                         self.found_color = False
-                        return True
+                        return True #return true after ar completed
                 else:
                     print("ar not showing up")
+                    #if ar code not found keep spining
                     my_twist = Twist(
                         linear=Vector3(0.0, 0, 0),
                         angular=Vector3(0, 0, 0.05)
@@ -402,9 +370,6 @@ class Action(object):
                     # publish the message
                     self.pub_twist.publish(my_twist)
                     print("turn published")
-                    #rospy.sleep(1)
-                    #stop = Twist()
-                    #self.pub_twist.publish(stop)
                     print("stop")
                     return False
         else:
@@ -423,15 +388,6 @@ class Action(object):
                     #self.pub_twist.publish(stop)
                     print("stop")
                     return False
-
-        #distance to x_average ?
-        while self.distance_object  > 0.2:
-            new_lin = kp * (self.distance_object-distance_from_ar)
-            move_foward = Vector3(new_lin, 0,0)
-            rospy.sleep(1)
-            self.pub_twist.publish(linear = move_foward, angular = Vector3(0,0,0))
-        self.move_arm(2)
-                        
         #pink goes to 3
         #green goes to 1
         #blue to 2
@@ -440,31 +396,36 @@ class Action(object):
         print("choose_action")
         
         matrix = self.matrix
-        curr_state = 0
-        for i in range(3):
+        curr_state = 0 #start state at origin
+        for i in range(3): #robot must complete three actions
             action = 0
-            max_q = 0
+            max_q = 0 
+            #find what the maximum q value for the currect state is and save corresponding action
             for i in range(9):
                 if matrix[curr_state][i] > max_q:
                     action = i
                     max_q = matrix[curr_state][i]
-            self.action = action #set action to maximum
+            self.action = action #set action to maximum action
             print("action choosen " + str(action))
             color_completed = False
             while not color_completed:
                 color_completed = self.find_color()
+                #call function to find and pick up correct color
             print("picked up color")
             ar_completed = False
             while not ar_completed:
                 ar_completed = self.find_ar()
+                #call function to find correct ar tag and place object in front of it
             print("placed at ar tag")
             ## initalize a list and then pop them off the list to store the action values
 
             next_state = 0
+            #update next state based on which action was chosen
             while self.action_matrix[curr_state][next_state] != action and next_state < 64:
                 next_state += 1
             curr_state = next_state
             print("updated state")
+        #stop robot
         myTwist = Twist()
         self.pub_twist.publish(myTwist)
     def run(self):
