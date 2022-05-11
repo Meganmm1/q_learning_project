@@ -63,7 +63,8 @@ class Action(object):
         self.move_group_gripper = moveit_commander.MoveGroupCommander("gripper")
 
         # Reset arm position
-        self.move_group_arm.go(np.deg2rad([-1,-39,13,-29]))
+        #self.move_group_arm.go(np.deg2rad([-1,-39,13,-29]))
+        self.move_group_arm.go(np.deg2rad([-1,15,18,-29]))
         print("ready")
 
         self.found_color = False   
@@ -103,7 +104,7 @@ class Action(object):
         non_zero = []
         min_dist = 1000
         min_angle = 0
-        for i in range(-10,10):
+        for i in range(-10,11):
             if data.ranges[i] != 0:
                 non_zero.append(data.ranges[i])
                 if data.ranges[i] < min_dist:
@@ -115,7 +116,8 @@ class Action(object):
             #self.distance_object = np.average(non_zero)#data.ranges[0]#sum/7
         else:
             self.distancce_object = 0.3
-        self.min_angle = min_angle
+        self.min_ang = min_angle
+        #print("min angle: " + str(min_angle))
         '''else:
             self.distance_object = 0.5
         #print("scanner: " + str(self.distance_object))
@@ -129,12 +131,12 @@ class Action(object):
     def final_rotate(self):
         print("final rotate")
         print(self.min_ang)
-        kp = 1.2*.017
+        kp = .4*.017
         while self.min_ang != 0:
-            print("final adjustments")
+            print("final adjustments, ang: " + str(self.min_ang))
             new_ang = kp*(self.min_ang)
             myTwist = Twist(linear = Vector3(),angular = Vector3(0,0,new_ang))
-            self.pub_twist.publish(new_ang)
+            self.pub_twist.publish(myTwist)
 
     def find_color(self):  
         print("look for color")
@@ -147,13 +149,13 @@ class Action(object):
             ar_tag = action['tag']
             #set bounds for each color
             if color == "pink":
-                    lower = numpy.array([147, 63, 160])
+                    lower = numpy.array([147, 50, 160])
                     upper = numpy.array([168, 255, 255])
             elif color == "green":
                     lower = numpy.array([30, 50, 160])
                     upper = numpy.array([60, 255, 255])
             else:
-                    lower = numpy.array([85, 63, 160])
+                    lower = numpy.array([85, 50, 160])
                     upper = numpy.array([104, 255, 255])
                 
             print("COLOR: " + str(color))
@@ -181,14 +183,19 @@ class Action(object):
                 #this is if we want the circle to visualize
                 #cv2.circle(image, (cx, cy), 20, (0,0,255), -1) 
                 
-                kp = .23/w
+                kp = .20/w
                 new_ang = kp*(w*.5 - 5 - cx)
                 print("new ang " + str(new_ang))
                 print("distance " + str(self.distance_object))
                 print(new_ang)
-                if abs(new_ang) > 0.006:
+                if abs(new_ang) < 0.008 and not self.found_color:
                     self.found_color = True
-                elif abs(new_ang) > 0.05:
+                    stop = Twist()
+                    self.pub_twist.publish(stop)
+                    rospy.sleep(1)
+                    self.move_arm(0)
+                    rospy.sleep(1)
+                elif abs(new_ang) > 0.5:
                     self.found_color = False
                 if self.found_color: #if it has found the color and gotten close then start moving forward
                     print("has found color")
@@ -207,17 +214,22 @@ class Action(object):
                         self.pub_twist.publish(stop)
                         #pick up object
                         print("close enough")
-                        self.final_rotate()
+                        #self.final_rotate()
                         self.move_arm(1)
-                        r = rospy.Rate(2)
-                        myTwist = Twist(linear = Vector3(-0.,0,0), angular = Vector3(0,0,0))
+                        #move back a bit
+                        myTwist = Twist(linear = Vector3(-0.13,0,0), angular = Vector3(0,0,0))
                         self.pub_twist.publish(myTwist)
                         rospy.sleep(1)
                         #self.find_ar()
                         return True
                 else:
                     new_lin = 0
-                new_ang = kp*(w*.5 - 5 - cx)
+                if self.found_color:
+                    kp = .4*.017
+                    print("adjustments, ang: " + str(self.min_ang+3))
+                    new_ang = kp*(self.min_ang+1)
+                else:
+                    new_ang = kp*(w*.5 - 5 - cx)
                 move_towards_color= Vector3(0,0,new_ang)
                 my_twist = Twist(
                         linear = Vector3(new_lin,0,0), 
@@ -259,16 +271,13 @@ class Action(object):
             #have robot place object
     
     def move_arm(self,direction):
-        pickup_object = [-1,15,18,-29]
-        lift_object = [-1,-39,13,-29]
+        pickup_object = np.deg2rad([-1,15,18,-29])
+        lift_object = np.deg2rad([-1,-39,13,-29])
         #convert to rad
-        for i in range(4):
-            pickup_object[i] = np.deg2rad(pickup_object[i])
-            lift_object[i] = np.deg2rad(lift_object[i])
         gripper_open = [0.018,0.018]
         gripper_closed = [-0.002,-0.002]
 
-        if direction == 1:
+        if direction == 0:
             #open gripper
             
             self.move_group_gripper.go(gripper_open)
@@ -278,13 +287,15 @@ class Action(object):
 
             #move arm down
             
-            self.move_group_arm.go(pickup_object)
-            print("picked_up")
-            rospy.sleep(1)
-            self.move_group_arm.stop()
-            rospy.sleep(2)
-            print("moved_arm")
+            #self.move_group_arm.go(pickup_object)
+            #print("pick_up position")
+            #rospy.sleep(2)
+            #self.move_group_arm.stop()
+            #rospy.sleep(2)
+            #print("moved_arm")
 
+        if direction == 1:
+            
             #close gripper
             self.move_group_gripper.go(gripper_closed)
             self.move_group_gripper.stop()
@@ -293,10 +304,9 @@ class Action(object):
 
             #move arm up
             self.move_group_arm.go(lift_object)
-            rospy.sleep(1)
-            self.move_group_arm.stop()
-            print("arm_down")
             rospy.sleep(2)
+            self.move_group_arm.stop()
+            print("arm_up")
 
             #code to make it move down
         elif direction == 2:
@@ -314,8 +324,8 @@ class Action(object):
             print("opened gripper")
             rospy.sleep(1)
 
-            self.move_group_arm.go(np.deg2rad([-1,-39,13,-29]))
-            rospy.sleep(1)
+            #self.move_group_arm.go(np.deg2rad([-1,-39,13,-29]))
+            #rospy.sleep(1)
             print("ready")
 
 
@@ -364,7 +374,7 @@ class Action(object):
                     else:
                         kp = 0.1
                         rospy.sleep(1)
-                        while self.distance_object > 0.4:
+                        while self.distance_object > 0.45:
                             print(self.distance_object)
                             new_lin = kp * (self.distance_object-0.3)
                             move_foward = Vector3(new_lin, 0,0)
@@ -376,10 +386,10 @@ class Action(object):
                         #put down object
                         print("close enough")
                         self.move_arm(2)
-                        r = rospy.Rate(2)
-                        myTwist = Twist(linear = Vector3(-0.1,0,0), angular = Vector3(0,0,0))
-                        self.pub_twist.publish(myTwist)
+                        myTwist = Twist(linear = Vector3(-0.2,0,0), angular = Vector3(0,0,0))
                         rospy.sleep(1)
+                        self.pub_twist.publish(myTwist)
+                        self.found_color = False
                         return True
                 else:
                     print("ar not showing up")
